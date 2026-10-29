@@ -1,0 +1,39 @@
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      SA_PASSWORD: "Research@123"
+      ACCEPT_EULA: "Y"
+    ports:
+      - "1433:1433"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build: ./backend-dotnet
+    ports:
+      - "5000:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Development
+      - ConnectionStrings__DefaultConnection=Server=db;Database=ResearchAgentDb;User=sa;Password=Research@123;TrustServerCertificate=True
+      - ConnectionStrings__Redis=redis:6379
+      - Jwt__Secret=research-agent-secret-key-min-32chars!!
+      - AgentService__BaseUrl=http://agent:8000
+    depends_on:
+      - db
+      - redis
+      - agent
+
+  agent:
+    build: ./python-agent
+    ports:
+      - "8000:8000"
+    environment:
+      - OPENAI_API_KEY=${OPENAI_API_KEY}
+      - SERPER_API_KEY=${SERPER_API_KEY}
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      - redis
